@@ -1,0 +1,29 @@
+{
+  "name": "@i2v-ai/sdk",
+  "version": "0.1.0",
+  "description": "Server-side TypeScript SDK for the i2v.ai media generation API",
+  "license": "MIT",
+  "type": "module",
+  "engines": { "node": ">=22" },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/i2v-ai/i2v-agent-tools.git",
+    "directory": "packages/sdk"
+  },
+  "exports": {
+    ".": { "types": "./dist/index.d.ts", "import": "./dist/index.js" }
+  },
+  "files": ["dist", "openapi/i2v-2.2.0.json"],
+  "scripts": {
+    "generate": "openapi-typescript openapi/i2v-2.2.0.json --output src/api.generated.ts",
+    "build": "npm run generate && tsc -p tsconfig.json",
+    "test": "node --test",
+    "prepack": "npm run build"
+  },
+  "devDependencies": {
+    "@types/node": "22.15.3",
+    "openapi-typescript": "7.13.0",
+    "typescript": "5.9.3"
+  },
+  "publishConfig": { "access": "public", "tag": "next" }
+}

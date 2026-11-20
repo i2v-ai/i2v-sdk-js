@@ -1,0 +1,3466 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "I2V Generation API",
+    "version": "2.2.0",
+    "description": "Create image, video and text tasks, poll results and read the USD wallet. Model-specific inputs are documented under /docs/models."
+  },
+  "servers": [
+    {
+      "url": "https://api.i2v.ai"
+    }
+  ],
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ],
+  "paths": {
+    "/api/v1/generation-models": {
+      "get": {
+        "operationId": "listGenerationModels",
+        "summary": "Discover published image and video models",
+        "description": "Public catalog prices are indicative. Use quoteGeneration for a maximum on a specific account and request.",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Public model identifiers, input contracts and catalog pricing.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/MediaCatalogModel"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Request failed. Inspect code and message before retrying.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Request failed. Inspect code and message before retrying.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/jobs/quote": {
+      "post": {
+        "operationId": "quoteGeneration",
+        "summary": "Quote a media task in USD",
+        "description": "Uses the same model inputs, account entitlements and API pricing channel as createTask. No task or reservation is created. Send maximum.amount as maxCostUsd and expectedRevision with the same model and inputs when submitting.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MediaQuoteRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Maximum USD reservation for these inputs and account.",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Request identifier to provide when contacting support.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MediaQuote"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Request failed. Inspect code and message before retrying.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Request failed. Inspect code and message before retrying.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "402": {
+            "description": "Request failed. Inspect code and message before retrying.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Request failed. Inspect code and message before retrying.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Request failed. Inspect code and message before retrying.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Request failed. Inspect code and message before retrying.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Request failed. Inspect code and message before retrying.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Request failed. Inspect code and message before retrying.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Request failed. Inspect code and message before retrying.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/jobs/submission": {
+      "get": {
+        "operationId": "readSubmissionReceipt",
+        "summary": "Recover a media submission receipt",
+        "description": "Send the API key and Idempotency-Key used at submission. This lookup never creates a task or reserves money. Pending means continue checking the same receipt. Retryable means you may replay the original body and key. For an accepted receipt, continue with recordInfo.",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Receipt state. A task ID is returned only after durable acceptance.",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Request identifier to provide when contacting support.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Retry-After": {
+                "description": "Suggested delay, in seconds, before another status check or safe replay.",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MediaSubmissionReceipt"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Request failed. Inspect code and message before retrying.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Request failed. Inspect code and message before retrying.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "402": {
+            "description": "Request failed. Inspect code and message before retrying.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Request failed. Inspect code and message before retrying.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Request failed. Inspect code and message before retrying.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Request failed. Inspect code and message before retrying.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Request failed. Inspect code and message before retrying.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Request failed. Inspect code and message before retrying.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Request failed. Inspect code and message before retrying.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/jobs/cancel": {
+      "post": {
+        "operationId": "cancelQueuedGeneration",
+        "summary": "Cancel an image or video task before dispatch",
+        "description": "Cancels an owned API task that has never been claimed for generation and releases its USD reservation. Repeating a successful cancellation is safe. A 409 means dispatch may have started or the task is otherwise ineligible. Query recordInfo to read its current state.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CancelMediaTaskRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Task cancelled and reservation released.",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Request identifier to provide when contacting support.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CancelMediaTaskResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Request failed. Inspect code and message before retrying.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Request failed. Inspect code and message before retrying.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "402": {
+            "description": "Request failed. Inspect code and message before retrying.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Request failed. Inspect code and message before retrying.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Request failed. Inspect code and message before retrying.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Request failed. Inspect code and message before retrying.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Request failed. Inspect code and message before retrying.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Request failed. Inspect code and message before retrying.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Request failed. Inspect code and message before retrying.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/uploads": {
+      "post": {
+        "operationId": "createTemporaryUpload",
+        "summary": "Get a temporary reference upload URL",
+        "description": "Request a signed PUT URL using only a file name. PUT the raw bytes directly to storage, then pass the public URL in inputs.uploadedUrls. Content-Type and size may also be supplied.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TemporaryUploadInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Signed upload ticket and public reference URL.",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Request identifier to provide when contacting support.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TemporaryUploadTicket"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Request failed. Inspect code and message before retrying.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Request failed. Inspect code and message before retrying.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "402": {
+            "description": "Request failed. Inspect code and message before retrying.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Request failed. Inspect code and message before retrying.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Request failed. Inspect code and message before retrying.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Request failed. Inspect code and message before retrying.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Request failed. Inspect code and message before retrying.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Request failed. Inspect code and message before retrying.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Request failed. Inspect code and message before retrying.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "operationId": "confirmTemporaryUpload",
+        "summary": "Verify a temporary upload and inspect its media",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 80
+            },
+            "description": "Storage path returned by the upload ticket."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Object metadata and expiration.",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Request identifier to provide when contacting support.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TemporaryUploadDetails"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Request failed. Inspect code and message before retrying.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Request failed. Inspect code and message before retrying.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "402": {
+            "description": "Request failed. Inspect code and message before retrying.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Request failed. Inspect code and message before retrying.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Request failed. Inspect code and message before retrying.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Request failed. Inspect code and message before retrying.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Request failed. Inspect code and message before retrying.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Request failed. Inspect code and message before retrying.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Request failed. Inspect code and message before retrying.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/assets": {
+      "post": {
+        "operationId": "createAssetUpload",
+        "summary": "Create a direct upload ticket",
+        "description": "PUT the raw bytes to uploadUrl using the returned Content-Type. Do not send the i2v.ai Bearer credential to the storage URL. Call completeUrl after upload.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MediaUploadRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Short-lived signed PUT ticket.",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Request identifier to provide when contacting support.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MediaUploadTicket"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Request failed. Inspect code and message before retrying.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Request failed. Inspect code and message before retrying.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "402": {
+            "description": "Request failed. Inspect code and message before retrying.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Request failed. Inspect code and message before retrying.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Request failed. Inspect code and message before retrying.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Request failed. Inspect code and message before retrying.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Request failed. Inspect code and message before retrying.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Request failed. Inspect code and message before retrying.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Request failed. Inspect code and message before retrying.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/assets/{assetId}/complete": {
+      "post": {
+        "operationId": "completeAssetUpload",
+        "summary": "Verify an uploaded asset",
+        "description": "Verifies account ownership, file size and Content-Type. Use the returned URL in the model input after confirmation.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "assetId",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Verified asset URL.",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Request identifier to provide when contacting support.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompletedMediaUpload"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Request failed. Inspect code and message before retrying.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Request failed. Inspect code and message before retrying.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "402": {
+            "description": "Request failed. Inspect code and message before retrying.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Request failed. Inspect code and message before retrying.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Request failed. Inspect code and message before retrying.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Request failed. Inspect code and message before retrying.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Request failed. Inspect code and message before retrying.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Request failed. Inspect code and message before retrying.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Request failed. Inspect code and message before retrying.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/jobs/createTask": {
+      "post": {
+        "operationId": "createTask",
+        "summary": "Create a generation task",
+        "description": "Reserves a quoted USD maximum and returns a task ID. The selected model determines accepted inputs. Reuse the same idempotency key and payload when retrying a logical submission.",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "description": "Stable identifier for one logical submission. A conflicting payload returns HTTP 409.",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "model"
+                ],
+                "properties": {
+                  "model": {
+                    "type": "string"
+                  },
+                  "inputs": {
+                    "type": "object",
+                    "additionalProperties": true,
+                    "description": "Model-specific inputs. See the model documentation for required fields, defaults and mode constraints."
+                  },
+                  "callBackUrl": {
+                    "type": "string",
+                    "format": "uri",
+                    "description": "Public HTTPS callback URL. Configure a signing secret before use."
+                  },
+                  "maxCostUsd": {
+                    "type": "string",
+                    "pattern": "^(0|[1-9][0-9]*)(\\.[0-9]{1,8})?$",
+                    "description": "Optional USD ceiling as an exact decimal string. A quote above this amount returns HTTP 409 before generation. Legacy maxCredits does not set a USD ceiling."
+                  },
+                  "expectedRevision": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "description": "Optional published model revision for optimistic concurrency checks."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Task accepted. Poll recordInfo for completion.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "taskId"
+                  ],
+                  "properties": {
+                    "taskId": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "example": {
+                  "taskId": "YOUR_TASK_ID"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Request failed. Inspect code and message before retrying.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Request failed. Inspect code and message before retrying.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "402": {
+            "description": "Request failed. Inspect code and message before retrying.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Request failed. Inspect code and message before retrying.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Request failed. Inspect code and message before retrying.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Request failed. Inspect code and message before retrying.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Request rate or generation concurrency reached. Concurrency responses include limit and current. Retry-After is returned in seconds.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Request failed. Inspect code and message before retrying.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Request failed. Inspect code and message before retrying.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/jobs/recordInfo": {
+      "get": {
+        "operationId": "recordInfo",
+        "summary": "Query a task",
+        "description": "Read an owned task. Poll with backoff until success or fail. API image and video tasks can include lifecycle.phase and a suggested polling delay. Queries return the original USD reservation, charge, release, refunds and funding allocation.",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "taskId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Current task state. A failed generation is represented by status fail.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Task"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Request failed. Inspect code and message before retrying.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Request failed. Inspect code and message before retrying.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "402": {
+            "description": "Request failed. Inspect code and message before retrying.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Request failed. Inspect code and message before retrying.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Request failed. Inspect code and message before retrying.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Request failed. Inspect code and message before retrying.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Request failed. Inspect code and message before retrying.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Request failed. Inspect code and message before retrying.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Request failed. Inspect code and message before retrying.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/chat/completions": {
+      "post": {
+        "operationId": "chatCompletions",
+        "summary": "Generate a text completion with a USD cost cap",
+        "description": "The default quote covers 32000 output tokens. DeepInfra defaults to an explicit 16384-token channel limit. Explicit caller limits are preserved. Read chat/quote before submission and supply maxCostUsd. Reuse Idempotency-Key with an identical body to retrieve the saved JSON or SSE receipt. Unknown outcomes retain the original reservation. Missing usage preserves output. A minimum equal to the accepted cap is settled deterministically. Larger unresolved fees enter verified usage review. Query recordInfo using X-I2V-Task-Id.",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChatRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OpenAI-compatible completion or SSE stream with a persistent USD billing identity.",
+            "headers": {
+              "X-I2V-Task-Id": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-I2V-Reserved-Usd": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-I2V-Currency": {
+                "schema": {
+                  "type": "string",
+                  "enum": [
+                    "USD"
+                  ]
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              },
+              "text/event-stream": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Request failed. Inspect code and message before retrying.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Request failed. Inspect code and message before retrying.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "402": {
+            "description": "Request failed. Inspect code and message before retrying.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Request failed. Inspect code and message before retrying.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Request failed. Inspect code and message before retrying.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Request failed. Inspect code and message before retrying.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Request failed. Inspect code and message before retrying.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Request failed. Inspect code and message before retrying.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Request failed. Inspect code and message before retrying.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/chat/quote": {
+      "post": {
+        "operationId": "quoteChat",
+        "summary": "Quote a text request in USD",
+        "description": "Read-only. Uses UTF-8 bytes plus message/tool framing and the requested output limit to calculate the maximum reservation. Submitting a smaller maxCostUsd is rejected before provider dispatch.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChatRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Exact maximum, minimum and per-million-token USD prices.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "model",
+                    "pricingVersion",
+                    "maximum",
+                    "inputTokenBound",
+                    "maxOutputTokens",
+                    "inputPerMillion",
+                    "outputPerMillion",
+                    "minimum"
+                  ],
+                  "properties": {
+                    "model": {
+                      "type": "string",
+                      "enum": [
+                        "roleplay-chat"
+                      ]
+                    },
+                    "pricingVersion": {
+                      "type": "string"
+                    },
+                    "maximum": {
+                      "$ref": "#/components/schemas/Money"
+                    },
+                    "minimum": {
+                      "$ref": "#/components/schemas/Money"
+                    },
+                    "inputPerMillion": {
+                      "$ref": "#/components/schemas/Money"
+                    },
+                    "outputPerMillion": {
+                      "$ref": "#/components/schemas/Money"
+                    },
+                    "inputTokenBound": {
+                      "type": "integer"
+                    },
+                    "maxOutputTokens": {
+                      "type": "integer",
+                      "maximum": 32000
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Request failed. Inspect code and message before retrying.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Request failed. Inspect code and message before retrying.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "402": {
+            "description": "Request failed. Inspect code and message before retrying.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Request failed. Inspect code and message before retrying.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Request failed. Inspect code and message before retrying.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Request failed. Inspect code and message before retrying.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Request failed. Inspect code and message before retrying.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Request failed. Inspect code and message before retrying.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Request failed. Inspect code and message before retrying.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/account": {
+      "get": {
+        "operationId": "getAccount",
+        "summary": "Read the USD wallet",
+        "responses": {
+          "200": {
+            "description": "Authenticated account with exact USD available and reserved balances by funding category.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "userId",
+                    "email",
+                    "name",
+                    "balance",
+                    "reserved",
+                    "funding",
+                    "createdAt"
+                  ],
+                  "properties": {
+                    "userId": {
+                      "type": "string"
+                    },
+                    "email": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "balance": {
+                      "$ref": "#/components/schemas/Money"
+                    },
+                    "reserved": {
+                      "$ref": "#/components/schemas/Money"
+                    },
+                    "funding": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "required": [
+                          "kind",
+                          "available",
+                          "reserved"
+                        ],
+                        "properties": {
+                          "kind": {
+                            "type": "string",
+                            "enum": [
+                              "paid",
+                              "promotional",
+                              "subscription",
+                              "legacy_unclassified"
+                            ]
+                          },
+                          "available": {
+                            "$ref": "#/components/schemas/Money"
+                          },
+                          "reserved": {
+                            "$ref": "#/components/schemas/Money"
+                          }
+                        }
+                      }
+                    },
+                    "createdAt": {
+                      "type": "integer",
+                      "description": "Unix time in milliseconds."
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Request failed. Inspect code and message before retrying.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Source IP is not allowed for this API key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Request failed. Inspect code and message before retrying.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/account/usage": {
+      "get": {
+        "operationId": "getAccountUsage",
+        "summary": "Read settled account usage in USD",
+        "description": "Returns account-wide settled usage and usage refunds by UTC booking date. Verified historical net usage is included separately. Pending reserves remain in the account balance endpoint. A refund booked in a later window can make net negative.",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "range",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "today",
+                "yesterday",
+                "7d",
+                "30d",
+                "90d"
+              ],
+              "default": "30d"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Account usage in the requested UTC window, with daily entries for booked activity.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountUsage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Request failed. Inspect code and message before retrying.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Request failed. Inspect code and message before retrying.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "402": {
+            "description": "Request failed. Inspect code and message before retrying.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Request failed. Inspect code and message before retrying.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Request failed. Inspect code and message before retrying.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Request failed. Inspect code and message before retrying.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Request failed. Inspect code and message before retrying.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Request failed. Inspect code and message before retrying.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Request failed. Inspect code and message before retrying.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer"
+      }
+    },
+    "schemas": {
+      "MediaCatalogModel": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "mediaType",
+          "inputSchema",
+          "prices"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "name": {
+            "type": "string"
+          },
+          "mediaType": {
+            "type": "string",
+            "enum": [
+              "image",
+              "video"
+            ]
+          },
+          "inputSchema": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "prices": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": true
+            }
+          }
+        },
+        "additionalProperties": true
+      },
+      "MediaQuoteRequest": {
+        "type": "object",
+        "required": [
+          "model"
+        ],
+        "properties": {
+          "model": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "inputs": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        }
+      },
+      "MediaQuote": {
+        "type": "object",
+        "required": [
+          "model",
+          "maximum",
+          "expectedRevision"
+        ],
+        "properties": {
+          "model": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "maximum": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "expectedRevision": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "MediaSubmissionReceipt": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "status",
+              "createdAt",
+              "taskId"
+            ],
+            "properties": {
+              "status": {
+                "type": "string",
+                "const": "accepted"
+              },
+              "createdAt": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "taskId": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "status",
+              "createdAt"
+            ],
+            "properties": {
+              "status": {
+                "type": "string",
+                "const": "pending"
+              },
+              "createdAt": {
+                "type": "string",
+                "format": "date-time"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "status",
+              "createdAt"
+            ],
+            "properties": {
+              "status": {
+                "type": "string",
+                "const": "retryable"
+              },
+              "createdAt": {
+                "type": "string",
+                "format": "date-time"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "status",
+              "createdAt",
+              "httpStatus"
+            ],
+            "properties": {
+              "status": {
+                "type": "string",
+                "const": "rejected"
+              },
+              "createdAt": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "httpStatus": {
+                "type": "integer",
+                "minimum": 400,
+                "maximum": 499
+              }
+            }
+          }
+        ]
+      },
+      "MediaLifecycle": {
+        "type": "object",
+        "required": [
+          "phase",
+          "pollAfterSeconds"
+        ],
+        "properties": {
+          "phase": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "queued",
+              "generating",
+              "delivering",
+              "reconciling",
+              "succeeded",
+              "failed",
+              "cancelled"
+            ]
+          },
+          "pollAfterSeconds": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        }
+      },
+      "CancelMediaTaskRequest": {
+        "type": "object",
+        "required": [
+          "taskId"
+        ],
+        "properties": {
+          "taskId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          }
+        }
+      },
+      "CancelMediaTaskResult": {
+        "type": "object",
+        "required": [
+          "taskId",
+          "phase"
+        ],
+        "properties": {
+          "taskId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "phase": {
+            "type": "string",
+            "const": "cancelled"
+          }
+        }
+      },
+      "TemporaryUploadInput": {
+        "type": "object",
+        "required": [
+          "fileName"
+        ],
+        "properties": {
+          "fileName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 180
+          },
+          "contentType": {
+            "type": "string",
+            "enum": [
+              "image/jpeg",
+              "image/png",
+              "image/webp",
+              "image/gif",
+              "image/avif",
+              "video/mp4",
+              "video/quicktime",
+              "video/webm",
+              "video/x-msvideo",
+              "video/x-matroska",
+              "audio/mpeg",
+              "audio/wav",
+              "audio/mp4",
+              "audio/aac",
+              "audio/ogg",
+              "audio/flac",
+              "audio/mp3",
+              "audio/m4a",
+              "audio/x-m4a",
+              "audio/x-flac"
+            ]
+          },
+          "fileSize": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 52428800,
+            "description": "Bytes. Limits are 10 MiB for images, 50 MiB for video, and 15 MiB for audio."
+          }
+        }
+      },
+      "TemporaryUploadTicket": {
+        "type": "object",
+        "required": [
+          "path",
+          "url",
+          "uploadUrl",
+          "method",
+          "contentType",
+          "expiresIn",
+          "confirmUrl",
+          "assetTtlSeconds"
+        ],
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string",
+            "format": "uri"
+          },
+          "uploadUrl": {
+            "type": "string",
+            "format": "uri"
+          },
+          "method": {
+            "type": "string",
+            "const": "PUT"
+          },
+          "contentType": {
+            "type": "string"
+          },
+          "expiresIn": {
+            "type": "integer",
+            "const": 900
+          },
+          "confirmUrl": {
+            "type": "string"
+          },
+          "assetTtlSeconds": {
+            "type": "integer",
+            "const": 86400
+          }
+        }
+      },
+      "TemporaryUploadDetails": {
+        "type": "object",
+        "required": [
+          "path",
+          "url",
+          "size",
+          "contentType",
+          "media",
+          "uploadedAt",
+          "expiresAt",
+          "assetTtlSeconds"
+        ],
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string",
+            "format": "uri"
+          },
+          "size": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "contentType": {
+            "type": "string"
+          },
+          "uploadedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "assetTtlSeconds": {
+            "type": "integer",
+            "const": 86400
+          },
+          "media": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "required": [
+              "kind",
+              "width",
+              "height",
+              "rotation",
+              "durationMs"
+            ],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "image",
+                  "video",
+                  "audio"
+                ]
+              },
+              "width": {
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
+              "height": {
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
+              "rotation": {
+                "type": "integer",
+                "enum": [
+                  0,
+                  90,
+                  180,
+                  270
+                ]
+              },
+              "durationMs": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              }
+            }
+          }
+        }
+      },
+      "MediaUploadRequest": {
+        "type": "object",
+        "required": [
+          "fileName",
+          "fileSize",
+          "contentType"
+        ],
+        "properties": {
+          "fileName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 180
+          },
+          "fileSize": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 52428800,
+            "description": "Bytes. Limits are 10 MiB for images, 50 MiB for video, and 15 MiB for audio."
+          },
+          "contentType": {
+            "type": "string",
+            "enum": [
+              "image/jpeg",
+              "image/png",
+              "image/webp",
+              "image/gif",
+              "audio/mpeg",
+              "audio/wav",
+              "audio/mp3",
+              "audio/m4a",
+              "audio/x-m4a",
+              "audio/mp4",
+              "audio/aac",
+              "audio/flac",
+              "audio/x-flac",
+              "audio/ogg",
+              "video/mp4",
+              "video/webm",
+              "video/quicktime",
+              "video/x-msvideo",
+              "video/x-matroska"
+            ]
+          }
+        }
+      },
+      "MediaUploadTicket": {
+        "type": "object",
+        "required": [
+          "assetId",
+          "uploadUrl",
+          "method",
+          "contentType",
+          "expiresIn",
+          "completeUrl"
+        ],
+        "properties": {
+          "assetId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "uploadUrl": {
+            "type": "string",
+            "format": "uri"
+          },
+          "method": {
+            "type": "string",
+            "const": "PUT"
+          },
+          "contentType": {
+            "type": "string"
+          },
+          "expiresIn": {
+            "type": "integer",
+            "description": "Signed URL lifetime in seconds."
+          },
+          "completeUrl": {
+            "type": "string",
+            "description": "Relative API path for the verification call."
+          }
+        }
+      },
+      "CompletedMediaUpload": {
+        "type": "object",
+        "required": [
+          "id",
+          "url",
+          "status",
+          "bytes"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "url": {
+            "type": "string",
+            "format": "uri"
+          },
+          "status": {
+            "type": "string",
+            "const": "ready"
+          },
+          "bytes": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      },
+      "AccountUsage": {
+        "type": "object",
+        "required": [
+          "scope",
+          "period",
+          "charged",
+          "refunded",
+          "historicalNet",
+          "net",
+          "daily"
+        ],
+        "properties": {
+          "scope": {
+            "const": "account"
+          },
+          "period": {
+            "type": "object",
+            "required": [
+              "range",
+              "start",
+              "end",
+              "timezone"
+            ],
+            "properties": {
+              "range": {
+                "type": "string",
+                "enum": [
+                  "today",
+                  "yesterday",
+                  "7d",
+                  "30d",
+                  "90d"
+                ]
+              },
+              "start": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "end": {
+                "type": "string",
+                "format": "date-time",
+                "description": "Exclusive end."
+              },
+              "timezone": {
+                "const": "UTC"
+              }
+            }
+          },
+          "charged": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "refunded": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "historicalNet": {
+            "type": "object",
+            "required": [
+              "currency",
+              "amount"
+            ],
+            "properties": {
+              "currency": {
+                "const": "USD"
+              },
+              "amount": {
+                "type": "string",
+                "pattern": "^-?[0-9]+\\.[0-9]{8}$"
+              }
+            }
+          },
+          "net": {
+            "type": "object",
+            "required": [
+              "currency",
+              "amount"
+            ],
+            "properties": {
+              "currency": {
+                "const": "USD"
+              },
+              "amount": {
+                "type": "string",
+                "pattern": "^-?[0-9]+\\.[0-9]{8}$"
+              }
+            }
+          },
+          "daily": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "day",
+                "charged",
+                "refunded",
+                "historicalNet",
+                "net"
+              ],
+              "properties": {
+                "day": {
+                  "type": "string",
+                  "format": "date"
+                },
+                "charged": {
+                  "$ref": "#/components/schemas/Money"
+                },
+                "refunded": {
+                  "$ref": "#/components/schemas/Money"
+                },
+                "historicalNet": {
+                  "type": "object",
+                  "required": [
+                    "currency",
+                    "amount"
+                  ],
+                  "properties": {
+                    "currency": {
+                      "const": "USD"
+                    },
+                    "amount": {
+                      "type": "string",
+                      "pattern": "^-?[0-9]+\\.[0-9]{8}$"
+                    }
+                  }
+                },
+                "net": {
+                  "type": "object",
+                  "required": [
+                    "currency",
+                    "amount"
+                  ],
+                  "properties": {
+                    "currency": {
+                      "const": "USD"
+                    },
+                    "amount": {
+                      "type": "string",
+                      "pattern": "^-?[0-9]+\\.[0-9]{8}$"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "Money": {
+        "type": "object",
+        "required": [
+          "currency",
+          "amount"
+        ],
+        "properties": {
+          "currency": {
+            "type": "string",
+            "enum": [
+              "USD"
+            ]
+          },
+          "amount": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)(\\.[0-9]{1,8})?$"
+          }
+        }
+      },
+      "TaskBilling": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "currency": {
+            "type": "string",
+            "const": "USD"
+          },
+          "origin": {
+            "type": "string",
+            "enum": [
+              "usd",
+              "archive",
+              "unverified"
+            ]
+          },
+          "reservationId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "historicalTransactionId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "reserved",
+              "captured",
+              "released",
+              "migration_required",
+              "unverified"
+            ]
+          },
+          "maximum": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "currency": {
+                    "type": "string",
+                    "const": "USD"
+                  },
+                  "amount": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "currency",
+                  "amount"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "reserved": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "currency": {
+                    "type": "string",
+                    "const": "USD"
+                  },
+                  "amount": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "currency",
+                  "amount"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "charged": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "currency": {
+                    "type": "string",
+                    "const": "USD"
+                  },
+                  "amount": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "currency",
+                  "amount"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "released": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "currency": {
+                    "type": "string",
+                    "const": "USD"
+                  },
+                  "amount": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "currency",
+                  "amount"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "refunded": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "currency": {
+                    "type": "string",
+                    "const": "USD"
+                  },
+                  "amount": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "currency",
+                  "amount"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "netCharged": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "currency": {
+                    "type": "string",
+                    "const": "USD"
+                  },
+                  "amount": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "currency",
+                  "amount"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "pricing": {
+            "type": "object",
+            "properties": {
+              "standard": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "currency": {
+                        "type": "string",
+                        "const": "USD"
+                      },
+                      "amount": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "currency",
+                      "amount"
+                    ]
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "accepted": {
+                "type": "object",
+                "properties": {
+                  "currency": {
+                    "type": "string",
+                    "const": "USD"
+                  },
+                  "amount": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "currency",
+                  "amount"
+                ]
+              },
+              "ruleId": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "revision": {
+                "anyOf": [
+                  {
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "label": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "experimentVariant": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "standard",
+              "accepted",
+              "ruleId",
+              "revision",
+              "label",
+              "experimentVariant"
+            ]
+          },
+          "reason": {
+            "type": "string"
+          },
+          "funding": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "kind": {
+                  "type": "string",
+                  "enum": [
+                    "paid",
+                    "promotional",
+                    "subscription",
+                    "legacy_unclassified"
+                  ]
+                },
+                "sourceId": {
+                  "type": "string"
+                },
+                "paymentId": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "modelIds": {
+                  "anyOf": [
+                    {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "expiresAt": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "reserved": {
+                  "type": "object",
+                  "properties": {
+                    "currency": {
+                      "type": "string",
+                      "const": "USD"
+                    },
+                    "amount": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "currency",
+                    "amount"
+                  ]
+                },
+                "charged": {
+                  "type": "object",
+                  "properties": {
+                    "currency": {
+                      "type": "string",
+                      "const": "USD"
+                    },
+                    "amount": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "currency",
+                    "amount"
+                  ]
+                },
+                "released": {
+                  "type": "object",
+                  "properties": {
+                    "currency": {
+                      "type": "string",
+                      "const": "USD"
+                    },
+                    "amount": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "currency",
+                    "amount"
+                  ]
+                },
+                "refunded": {
+                  "type": "object",
+                  "properties": {
+                    "currency": {
+                      "type": "string",
+                      "const": "USD"
+                    },
+                    "amount": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "currency",
+                    "amount"
+                  ]
+                },
+                "netCharged": {
+                  "type": "object",
+                  "properties": {
+                    "currency": {
+                      "type": "string",
+                      "const": "USD"
+                    },
+                    "amount": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "currency",
+                    "amount"
+                  ]
+                }
+              },
+              "required": [
+                "id",
+                "kind",
+                "sourceId",
+                "paymentId",
+                "modelIds",
+                "expiresAt",
+                "reserved",
+                "charged",
+                "released",
+                "refunded",
+                "netCharged"
+              ]
+            }
+          }
+        },
+        "required": [
+          "currency",
+          "origin",
+          "reservationId",
+          "historicalTransactionId",
+          "status",
+          "maximum",
+          "reserved",
+          "charged",
+          "released",
+          "refunded",
+          "netCharged",
+          "reason",
+          "funding"
+        ]
+      },
+      "ChatRequest": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "model": {
+            "type": "string",
+            "const": "roleplay-chat"
+          },
+          "maxCostUsd": {
+            "type": "string"
+          },
+          "maxCredits": {
+            "not": {}
+          },
+          "messages": {
+            "minItems": 1,
+            "maxItems": 200,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "role": {
+                  "type": "string",
+                  "enum": [
+                    "system",
+                    "developer",
+                    "user",
+                    "assistant",
+                    "tool"
+                  ]
+                },
+                "content": {
+                  "anyOf": [
+                    {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "maxLength": 500000
+                        },
+                        {
+                          "minItems": 1,
+                          "maxItems": 128,
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "type": {
+                                "type": "string",
+                                "const": "text"
+                              },
+                              "text": {
+                                "type": "string",
+                                "maxLength": 500000
+                              }
+                            },
+                            "required": [
+                              "type",
+                              "text"
+                            ],
+                            "additionalProperties": false
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "reasoning_content": {
+                  "type": "string",
+                  "maxLength": 500000
+                },
+                "name": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9_-]{1,64}$"
+                },
+                "tool_calls": {
+                  "minItems": 1,
+                  "maxItems": 128,
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 256
+                      },
+                      "type": {
+                        "type": "string",
+                        "const": "function"
+                      },
+                      "function": {
+                        "type": "object",
+                        "properties": {
+                          "name": {
+                            "type": "string",
+                            "pattern": "^[A-Za-z0-9_-]{1,64}$"
+                          },
+                          "arguments": {
+                            "type": "string",
+                            "maxLength": 500000
+                          }
+                        },
+                        "required": [
+                          "name",
+                          "arguments"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "type",
+                      "function"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "tool_call_id": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 256
+                }
+              },
+              "required": [
+                "role"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "stream": {
+            "default": false,
+            "type": "boolean"
+          },
+          "reasoning_effort": {
+            "type": "string",
+            "enum": [
+              "low",
+              "high",
+              "max"
+            ]
+          },
+          "reasoning": {
+            "type": "object",
+            "properties": {
+              "effort": {
+                "type": "string",
+                "enum": [
+                  "low",
+                  "high",
+                  "max"
+                ]
+              },
+              "enabled": {
+                "type": "boolean"
+              }
+            },
+            "additionalProperties": false
+          },
+          "thinking": {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "enabled",
+                  "disabled"
+                ]
+              }
+            },
+            "required": [
+              "type"
+            ],
+            "additionalProperties": false
+          },
+          "temperature": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 2
+          },
+          "top_p": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "stop": {
+            "anyOf": [
+              {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 1024
+                  },
+                  {
+                    "minItems": 1,
+                    "maxItems": 4,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 1024
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "frequency_penalty": {
+            "type": "number",
+            "minimum": -2,
+            "maximum": 2
+          },
+          "presence_penalty": {
+            "type": "number",
+            "minimum": -2,
+            "maximum": 2
+          },
+          "max_tokens": {
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 32000
+          },
+          "max_completion_tokens": {
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 32000
+          },
+          "tools": {
+            "maxItems": 128,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "function"
+                },
+                "function": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string",
+                      "pattern": "^[A-Za-z0-9_-]{1,64}$"
+                    },
+                    "description": {
+                      "type": "string",
+                      "maxLength": 16000
+                    },
+                    "parameters": {
+                      "type": "object",
+                      "propertyNames": {
+                        "type": "string"
+                      },
+                      "additionalProperties": {}
+                    },
+                    "strict": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "name"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "required": [
+                "type",
+                "function"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "tool_choice": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "none",
+                  "auto",
+                  "required"
+                ]
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "const": "function"
+                  },
+                  "function": {
+                    "type": "object",
+                    "properties": {
+                      "name": {
+                        "type": "string",
+                        "pattern": "^[A-Za-z0-9_-]{1,64}$"
+                      }
+                    },
+                    "required": [
+                      "name"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "required": [
+                  "type",
+                  "function"
+                ],
+                "additionalProperties": false
+              }
+            ]
+          },
+          "stream_options": {
+            "type": "object",
+            "properties": {
+              "include_usage": {
+                "type": "boolean"
+              }
+            },
+            "additionalProperties": false
+          },
+          "n": {
+            "type": "number",
+            "const": 1
+          }
+        },
+        "required": [
+          "model",
+          "messages"
+        ],
+        "additionalProperties": false
+      },
+      "TokenUsage": {
+        "type": "object",
+        "required": [
+          "prompt_tokens",
+          "completion_tokens"
+        ],
+        "properties": {
+          "prompt_tokens": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "completion_tokens": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "additionalProperties": true
+      },
+      "Error": {
+        "type": "object",
+        "required": [
+          "code",
+          "message"
+        ],
+        "properties": {
+          "code": {
+            "type": [
+              "string",
+              "integer"
+            ]
+          },
+          "message": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string",
+            "description": "Specific recovery or budget reason when available."
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "The generation concurrency limit reached."
+          },
+          "current": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "In-flight tasks counted against that limit."
+          }
+        },
+        "additionalProperties": true
+      },
+      "Task": {
+        "type": "object",
+        "required": [
+          "taskId",
+          "model",
+          "status",
+          "billing",
+          "output",
+          "error",
+          "createTime",
+          "completeTime"
+        ],
+        "properties": {
+          "taskId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "model": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "waiting",
+              "generating",
+              "success",
+              "fail"
+            ]
+          },
+          "lifecycle": {
+            "$ref": "#/components/schemas/MediaLifecycle"
+          },
+          "billing": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/TaskBilling"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "image",
+              "video",
+              "audio",
+              "text"
+            ]
+          },
+          "text": {
+            "oneOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "mode": {
+                    "type": "string",
+                    "enum": [
+                      "json",
+                      "stream"
+                    ]
+                  },
+                  "body": {
+                    "oneOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "object",
+                        "additionalProperties": true
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "usage": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/TokenUsage"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "reconciliationRequired": {
+            "type": "boolean"
+          },
+          "output": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "object",
+              "properties": {
+                "url": {
+                  "type": "string",
+                  "format": "uri"
+                },
+                "width": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "height": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                }
+              },
+              "additionalProperties": true
+            }
+          },
+          "error": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/Error"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "createTime": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "Unix time in milliseconds."
+          },
+          "completeTime": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "Unix time in milliseconds."
+          }
+        }
+      }
+    }
+  }
+}
