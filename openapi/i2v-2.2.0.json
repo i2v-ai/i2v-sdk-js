@@ -1094,11 +1094,36 @@
             }
           },
           "409": {
-            "description": "Request failed. Inspect code and message before retrying.",
+            "description": "Submission conflict. For reason submission_pending, check the original receipt with the same API key and idempotency key after Retry-After. Other conflicts may require a new quote, approval, or a corrected request.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds to wait before checking a pending submission. Present for submission_pending.",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "pending": {
+                    "value": {
+                      "code": "conflict",
+                      "message": "Submission in progress; reuse this key",
+                      "reason": "submission_pending"
+                    }
+                  },
+                  "budget": {
+                    "value": {
+                      "code": "conflict",
+                      "message": "The current quote exceeds the USD ceiling",
+                      "reason": "max_cost_exceeded"
+                    }
+                  }
                 }
               }
             }

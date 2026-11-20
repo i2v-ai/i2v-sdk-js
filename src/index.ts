@@ -48,6 +48,7 @@ export class I2VHttpError extends Error {
     public readonly code: string | null,
     public readonly requestId: string | null,
     public readonly retryAfterMs: number | null,
+    public readonly reason: string | null = null,
   ) {
     super(`i2v.ai request failed (HTTP ${status})${code ? `: ${code}` : ''}`);
     this.name = 'I2VHttpError';
@@ -78,17 +79,23 @@ function parseRetryAfter(value: string | null): number | null {
   return Number.isFinite(date) ? Math.max(0, date - Date.now()) : null;
 }
 
-function getErrorCode(body: unknown): string | null {
-  if (!body || typeof body !== 'object') return null;
+function errorIdentifier(value: unknown): string | null {
+  return typeof value === 'string' && /^[a-zA-Z0-9_-]{1,100}$/.test(value)
+    ? value
+    : null;
+}
+
+function getErrorIdentifiers(body: unknown) {
+  if (!body || typeof body !== 'object') return { code: null, reason: null };
   const record = body as Record<string, unknown>;
   const detail = record.error;
   const nested = detail && typeof detail === 'object'
     ? (detail as Record<string, unknown>).code
     : null;
-  const code = nested ?? record.code;
-  return typeof code === 'string' && /^[a-zA-Z0-9_-]{1,100}$/.test(code)
-    ? code
-    : null;
+  return {
+    code: errorIdentifier(nested ?? record.code),
+    reason: errorIdentifier(record.reason),
+  };
 }
 
 function requireIdempotencyKey(key: string) {
@@ -151,8 +158,8 @@ export class I2VClient {
     const requestId = response.headers.get('X-Request-ID');
     const retryAfterMs = parseRetryAfter(response.headers.get('Retry-After'));
     if (!response.ok) {
-      const error = await response.json().catch(() => null);
-      throw new I2VHttpError(response.status, getErrorCode(error), requestId, retryAfterMs);
+      const { code, reason } = getErrorIdentifiers(await response.json().catch(() => null));
+      throw new I2VHttpError(response.status, code, requestId, retryAfterMs, reason);
     }
     return { data: await response.json() as Data, requestId, retryAfterMs };
   }
@@ -196,7 +203,8 @@ export class I2VClient {
       }
       return result;
     } catch (error) {
-      if (error instanceof I2VHttpError && error.status < 500) throw error;
+      if (error instanceof I2VHttpError && error.status < 500 &&
+        !(error.status === 409 && error.reason === 'submission_pending')) throw error;
       throw new I2VSubmissionUnknownError(idempotencyKey, error);
     }
   }

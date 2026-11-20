@@ -62,7 +62,52 @@ test('a lost response recovers the original operation without creating a task ag
   assert.deepEqual(calls, ['/api/v1/jobs/createTask', '/api/v1/jobs/submission']);
 });
 
-test('conflicts and rate limits preserve the HTTP metadata', async () => {
+test('an HTTP 409 pending submission preserves the key and recovery metadata', async () => {
+  const calls = [];
+  const client = new I2VClient({
+    apiKey,
+    fetch: async (url, init) => {
+      calls.push(url.pathname);
+      assert.equal(init.headers.get('Idempotency-Key'), 'operation-pending');
+      if (url.pathname === '/api/v1/jobs/createTask') {
+        return json({ code: 'conflict', reason: 'submission_pending' }, {
+          status: 409,
+          headers: { 'X-Request-ID': 'pending-request', 'Retry-After': '5' },
+        });
+      }
+      return json({ status: 'pending' }, { headers: { 'Retry-After': '5' } });
+    },
+  });
+  let operationId;
+  await assert.rejects(client.createTask(submission, 'operation-pending'), error => {
+    assert(error instanceof I2VSubmissionUnknownError);
+    assert.equal(error.idempotencyKey, 'operation-pending');
+    operationId = error.idempotencyKey;
+    assert(error.cause instanceof I2VHttpError);
+    assert.equal(error.cause.code, 'conflict');
+    assert.equal(error.cause.reason, 'submission_pending');
+    assert.equal(error.cause.requestId, 'pending-request');
+    assert.equal(error.cause.retryAfterMs, 5000);
+    return true;
+  });
+  const receipt = await client.recoverSubmission(operationId);
+  assert.equal(receipt.data.status, 'pending');
+  assert.equal(receipt.retryAfterMs, 5000);
+  assert.deepEqual(calls, ['/api/v1/jobs/createTask', '/api/v1/jobs/submission']);
+});
+
+test('definitive submit conflicts preserve the reason as an HTTP error', async () => {
+  for (const reason of ['max_cost_exceeded', 'usd_commercial_quote_changed', null]) {
+    const client = new I2VClient({
+      apiKey,
+      fetch: async () => json({ code: 'conflict', ...(reason && { reason }) }, { status: 409 }),
+    });
+    await assert.rejects(client.createTask(submission, 'operation-rejected'), error =>
+      error instanceof I2VHttpError && error.status === 409 && error.code === 'conflict' && error.reason === reason);
+  }
+});
+
+test('rate limits preserve the HTTP metadata', async () => {
   const client = new I2VClient({
     apiKey,
     fetch: async () => json({ error: { code: 'rate_limited' } }, {
