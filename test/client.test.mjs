@@ -115,7 +115,7 @@ test('waiting uses the same task and never cancels it on timeout', async () => {
 test('webhook validation covers raw bytes, key rotation and freshness', () => {
   const now = 1_763_520_000_000;
   const timestamp = String(now / 1000);
-  const body = Buffer.from('{"taskId":"task-5","status":"success"}\n');
+  const body = Buffer.from('{"eventId":"event-1","data":{"taskId":"task-5","status":"success"}}\n');
   const secret = 'fixture-webhook-secret';
   const signature = createHmac('sha256', secret).update(timestamp + '.').update(body).digest('hex');
   const headers = new Headers({
@@ -127,9 +127,12 @@ test('webhook validation covers raw bytes, key rotation and freshness', () => {
   const getSecret = key => key === 'current' ? secret : undefined;
   const event = verifyWebhook(body, headers, getSecret, { now });
   assert.equal(event.eventId, 'event-1');
-  assert.equal(event.body.taskId, 'task-5');
+  assert.equal(event.body.data.taskId, 'task-5');
   assert.equal(verifyWebhook(body.subarray(0, -1), headers, getSecret, { now }), null);
   assert.equal(verifyWebhook(body, headers, getSecret, { now: now + 301_000 }), null);
+  headers.set('X-I2V-Event-ID', 'unbound-event-id');
+  assert.equal(verifyWebhook(body, headers, getSecret, { now }), null);
+  headers.set('X-I2V-Event-ID', 'event-1');
   headers.set('X-I2V-Key-ID', 'retired');
   assert.equal(verifyWebhook(body, headers, getSecret, { now }), null);
 });

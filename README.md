@@ -17,6 +17,6 @@ The snippet only reads the catalog and obtains a quote. Quote and account operat
 - **Recover:** if a submission times out or cannot be confirmed, call `recoverSubmission(originalKey)` with the original credential. On `accepted`, retain the task ID. On `pending`, keep checking the receipt. Replay a `retryable` request with exactly the same payload and key. A 404 calls for checking the key and credential.
 - **Cancel:** aborting `waitForTask` ends your local wait. `cancelTask` attempts to cancel an owned task before the worker claims it. On a 409 continue reading the original task.
 - **Upload:** `uploadAsset(blob, fileName)` requests a signed ticket, sends raw bytes without the API key, and confirms the upload on the API origin. Use the verified URL in the model's reference field.
-- **Receive callbacks:** pass the raw body and request headers to `verifyWebhook` with a key-ID secret lookup. Apply the event only to the task owned by your application, deduplicate the event ID in durable storage, and make state changes idempotent.
+- **Receive callbacks:** pass the raw body and request headers to `verifyWebhook` with a key-ID secret lookup. The helper matches the delivery ID header to the signed event body. Apply the event only to the task owned by your application, deduplicate the event ID in durable storage, and make state changes idempotent.
 
 See the [media workflow](https://i2v.ai/docs/media-workflow) and [runnable API examples](https://github.com/i2v-ai/i2v-api-examples).

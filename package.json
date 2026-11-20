@@ -1,6 +1,6 @@
 {
   "name": "@i2v-ai/sdk",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Server-side TypeScript SDK for the i2v.ai media generation API",
   "license": "MIT",
   "type": "module",

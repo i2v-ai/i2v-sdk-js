@@ -40,6 +40,9 @@ export function verifyWebhook(
   if (!timingSafeEqual(expected, received)) return null;
   try {
     const body: unknown = JSON.parse(typeof rawBody === 'string' ? rawBody : Buffer.from(rawBody).toString('utf8'));
+    if (!body || typeof body !== 'object' || !('eventId' in body) || body.eventId !== eventId) {
+      return null;
+    }
     return { eventId, keyId, timestamp, body };
   } catch {
     return null;
