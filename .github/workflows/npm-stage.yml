@@ -1,0 +1,56 @@
+name: Stage npm release
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Expected package.json version
+        required: true
+      sha256:
+        description: SHA-256 of the reviewed tarball from the GitHub release
+        required: true
+permissions: {}
+concurrency:
+  group: npm-stage
+  cancel-in-progress: false
+jobs:
+  stage:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.15.0
+          registry-url: https://registry.npmjs.org
+          package-manager-cache: false
+      - run: npm install --global --ignore-scripts npm@11.21.3
+      - name: Check the release version
+        env:
+          EXPECTED_VERSION: ${{ inputs.version }}
+          EXPECTED_SHA256: ${{ inputs.sha256 }}
+        run: |
+          if [[ ! "$EXPECTED_SHA256" =~ ^[[:xdigit:]]{64}$ ]]; then
+            printf 'Enter the 64-digit SHA-256 of the reviewed tarball.\n' >&2
+            exit 1
+          fi
+          actual="$(node -p "require('./package.json').version")"
+          if [[ "$actual" != "$EXPECTED_VERSION" ]]; then
+            printf 'Package version is %s. Expected %s.\n' "$actual" "$EXPECTED_VERSION" >&2
+            exit 1
+          fi
+      - run: npm install --no-audit --no-fund
+      - run: npm run build
+      - run: npm test
+      - name: Pack and check the archive
+        run: |
+          mkdir packed
+          npm pack --pack-destination "$PWD/packed"
+          archive="$(ls packed/*.tgz)"
+          printf '%s  %s\n' "${EXPECTED_SHA256,,}" "$archive" | sha256sum --check
+      - name: Stage for maintainer review
+        env:
+          EXPECTED_VERSION: ${{ inputs.version }}
+        run: npm stage publish packed/*.tgz --access public --tag next
