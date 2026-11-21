@@ -1,23 +1,85 @@
-# i2v.ai TypeScript SDK
+<p align="center">
+  <a href="https://i2v.ai">
+    <img src="https://i2v.ai/brand/folded-rabbit-light.png" alt="i2v.ai" width="96">
+  </a>
+</p>
 
-A server-side ECMAScript module for Node.js 22 and newer. The SDK generates its HTTP types from the checked-in i2v.ai OpenAPI 2.2.0 snapshot. Model inputs are discovered at runtime.
+<h1 align="center">i2v.ai TypeScript SDK</h1>
+
+<p align="center">
+  Server-side client for i2v.ai image and video generation: catalog, quotes, uploads, tasks, recovery and signed webhooks.<br>
+  Node.js 22 or newer · typed errors · quote before submit.
+</p>
+
+<p align="center">
+  <a href="https://www.npmjs.com/package/@i2v-ai/sdk"><img alt="npm" src="https://img.shields.io/npm/v/@i2v-ai/sdk?style=flat-square"></a>
+  <a href="https://i2v.ai/docs/integration"><img alt="Docs" src="https://img.shields.io/badge/docs-i2v.ai%2Fdocs%2Fintegration-6366f1?style=flat-square"></a>
+  <a href="https://api.i2v.ai/openapi.json"><img alt="OpenAPI" src="https://img.shields.io/badge/OpenAPI-2.2.0-0ea5e9?style=flat-square"></a>
+  <a href="./LICENSE"><img alt="License" src="https://img.shields.io/badge/license-MIT-22c55e?style=flat-square"></a>
+</p>
+
+<br>
+
+## Install
+
+```bash
+npm install @i2v-ai/sdk
+```
+
+## Quick start
 
 ```ts
 import { I2VClient } from '@i2v-ai/sdk';
 
 const client = new I2VClient({ apiKey: process.env.I2V_API_KEY });
-const { data: catalog } = await client.listModels();
-const spec = { model: 'gpt-image-2', inputs: { prompt: 'A ceramic mug on an oak table' } };
-const { data: quote } = await client.quote(spec);
-console.log(quote.maximum.amount, quote.expectedRevision);
+const models = await client.listModels();          // public, no key needed
+
+const quote = await client.quote({ model: 'gpt-image-2', inputs: { prompt: 'A ceramic mug' } });
+const receipt = await client.createTask(
+  { model: 'gpt-image-2', inputs: { prompt: 'A ceramic mug' },
+    maxCostUsd: '0.20', expectedRevision: quote.data.expectedRevision },
+  'order-1234-image',
+);
+const task = await client.waitForTask(receipt.data.taskId);
+console.log(task.data.status, task.data.output);
 ```
 
-The snippet only reads the catalog and obtains a quote. Quote and account operations require a server-side API key. When the user approves a budget, store the exact submission with the quoted revision, approved USD as a decimal string, and a stable operation key. Pass them to `createTask(submission, operationKey)`. Record the task ID and use `getTask` or `waitForTask`. The SDK returns `data`, `requestId`, and `retryAfterMs` so an application can surface support details and choose its own retry policy.
+## Error model
 
-- **Recover:** a timeout or HTTP 409 with `reason: submission_pending` throws `I2VSubmissionUnknownError`. Call `recoverSubmission(error.idempotencyKey)` with the original credential. If `error.cause` is an `I2VHttpError`, it includes `reason`, `requestId`, and `retryAfterMs`. On `accepted`, retain the task ID. On `pending`, wait for the receipt's `retryAfterMs` and check again. Replay a `retryable` request with exactly the same payload and key. A 404 calls for checking the key and credential.
-- **Handle a rejected submission:** budget, revision, and payload conflicts remain `I2VHttpError` with HTTP 409. Read `error.reason` when the API provides one. A revised input or budget requires a new quote, approval, and operation key.
-- **Cancel:** aborting `waitForTask` ends your local wait. `cancelTask` attempts to cancel an owned task before the worker claims it. On a 409 continue reading the original task.
-- **Upload:** `uploadAsset(blob, fileName)` requests a signed ticket, sends raw bytes without the API key, and confirms the upload on the API origin. Use the verified URL in the model's reference field.
-- **Receive callbacks:** pass the raw body and request headers to `verifyWebhook` with a key-ID secret lookup. The helper matches the delivery ID header to the signed event body. Apply the event only to the task owned by your application, deduplicate the event ID in durable storage, and make state changes idempotent.
+| Error | Meaning |
+| --- | --- |
+| `I2VHttpError` | Non-2xx response. Carries `status`, `code`, `reason`, `requestId`, `retryAfterMs`. |
+| `I2VSubmissionUnknownError` | The submission may be accepted (5xx, network failure, or HTTP 409 with `submission_pending`). Recover with `recoverSubmission(idempotencyKey)`. |
+| `I2VWaitTimeoutError` | The wait ended before the task reached a terminal state. |
 
-See the [media workflow](https://i2v.ai/docs/media-workflow) and [runnable API examples](https://github.com/i2v-ai/i2v-api-examples).
+Webhook deliveries are verified with `verifyWebhook(rawBody, headers, getSecret)`, which checks the timestamp window, the HMAC over `timestamp.body` and the event ID in the body.
+
+## Development
+
+```bash
+npm install
+npm run build     # regenerates src/api.generated.ts from openapi/i2v-2.2.0.json
+npm test
+```
+
+## For AI agents
+
+- Agent index: <https://i2v.ai/llms.txt>
+- Full documentation: <https://i2v.ai/llms-full.txt>
+- Remote MCP server: <https://i2v.ai/api/mcp>
+
+## Related repositories
+
+| Repository | Purpose |
+| --- | --- |
+| [i2v-cli](https://github.com/i2v-ai/i2v-cli) | Command-line tools |
+| [i2v-sdk-python](https://github.com/i2v-ai/i2v-sdk-python) | Python SDK |
+| [i2v-skills](https://github.com/i2v-ai/i2v-skills) | Agent Skills |
+| [i2v-mcp](https://github.com/i2v-ai/i2v-mcp) | Remote MCP metadata |
+| [generate-action](https://github.com/i2v-ai/generate-action) | GitHub Action |
+| [i2v-api-examples](https://github.com/i2v-ai/i2v-api-examples) | Runnable examples |
+| [i2v-agent-tools](https://github.com/i2v-ai/i2v-agent-tools) | Ecosystem hub |
+
+## License
+
+MIT. See [LICENSE](./LICENSE).

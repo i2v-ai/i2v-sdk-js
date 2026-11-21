@@ -4,16 +4,23 @@
   "description": "Server-side TypeScript SDK for the i2v.ai media generation API",
   "license": "MIT",
   "type": "module",
-  "engines": { "node": ">=22" },
+  "engines": {
+    "node": ">=22"
+  },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/i2v-ai/i2v-agent-tools.git",
-    "directory": "packages/sdk"
+    "url": "git+https://github.com/i2v-ai/i2v-sdk-js.git"
   },
   "exports": {
-    ".": { "types": "./dist/index.d.ts", "import": "./dist/index.js" }
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
   },
-  "files": ["dist", "openapi/i2v-2.2.0.json"],
+  "files": [
+    "dist",
+    "openapi/i2v-2.2.0.json"
+  ],
   "scripts": {
     "generate": "openapi-typescript openapi/i2v-2.2.0.json --output src/api.generated.ts",
     "build": "npm run generate && tsc -p tsconfig.json",
@@ -25,5 +32,20 @@
     "openapi-typescript": "7.13.0",
     "typescript": "5.9.3"
   },
-  "publishConfig": { "access": "public", "tag": "next" }
+  "publishConfig": {
+    "access": "public",
+    "tag": "next"
+  },
+  "homepage": "https://i2v.ai/docs/integration",
+  "bugs": {
+    "url": "https://github.com/i2v-ai/i2v-sdk-js/issues"
+  },
+  "keywords": [
+    "i2v",
+    "sdk",
+    "typescript",
+    "ai-video",
+    "ai-image",
+    "media-api"
+  ]
 }
